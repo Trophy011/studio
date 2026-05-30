@@ -26,6 +26,7 @@ import {
   ResponsiveContainer, 
   Cell 
 } from 'recharts';
+import { cn } from "@/lib/utils";
 
 export default function WealthPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -37,7 +38,7 @@ export default function WealthPage() {
   if (!user) return null;
 
   // Initial mock assets if none exist
-  const assets: Asset[] = user.assets.length > 0 ? user.assets : [
+  const assets: Asset[] = (user.assets && user.assets.length > 0) ? user.assets : [
     { id: 'a1', name: 'S&P 500 Index', value: 45200.50, change: 12.4, type: 'stock' },
     { id: 'a2', name: 'Bitcoin (BTC)', value: 28400.00, change: -2.1, type: 'crypto' },
     { id: 'a3', name: 'London Real Estate', value: 1250000.00, change: 4.8, type: 'real_estate' },

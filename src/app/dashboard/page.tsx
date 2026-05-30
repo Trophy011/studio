@@ -50,7 +50,7 @@ export default function DashboardOverview() {
     { name: 'Sun', value: user.balance },
   ];
 
-  const assetTotal = user.assets.reduce((a, b) => a + b.value, 0);
+  const assetTotal = (user.assets || []).reduce((a, b) => a + b.value, 0);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -159,10 +159,10 @@ export default function DashboardOverview() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Target className="text-accent h-5 w-5" /> Reserve Goals
-              </CardTitle>
+              </Target>
             </CardHeader>
             <CardContent className="space-y-4">
-              {user.goals?.map(goal => (
+              {(user.goals || []).map(goal => (
                 <div key={goal.id} className="space-y-2">
                   <div className="flex justify-between text-[11px] font-bold">
                     <span>{goal.name}</span>
@@ -182,7 +182,7 @@ export default function DashboardOverview() {
               <CardTitle className="text-lg">Recent Settlement Log</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {user.transactions.slice(0, 5).map((tr) => (
+              {(user.transactions || []).slice(0, 5).map((tr) => (
                 <div key={tr.id} className="flex items-center justify-between p-2 hover:bg-muted/30 rounded-xl transition-all border-b last:border-0 border-muted/20">
                   <div className="flex items-center space-x-3">
                     <div className={cn(

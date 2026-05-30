@@ -30,6 +30,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function TransfersPage() {
   const { toast } = useToast();
@@ -55,7 +56,7 @@ export default function TransfersPage() {
   if (!user) return null;
 
   // Mock bills if empty
-  const bills: Bill[] = user.bills.length > 0 ? user.bills : [
+  const bills: Bill[] = (user.bills && user.bills.length > 0) ? user.bills : [
     { id: 'b1', name: 'Apex Insurance Group', amount: 450.00, dueDate: '2024-05-15', status: 'upcoming', category: 'Insurance' },
     { id: 'b2', name: 'Global Properties LLC', amount: 2800.00, dueDate: '2024-05-01', status: 'upcoming', category: 'Rent' },
     { id: 'b3', name: 'Metropolitan Utilities', amount: 125.40, dueDate: '2024-04-20', status: 'paid', category: 'Utilities' },

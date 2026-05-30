@@ -12,7 +12,9 @@ import {
   LogOut, 
   Menu,
   ShieldCheck,
-  Bell
+  Bell,
+  TrendingUp,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,9 +24,11 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
   { icon: ArrowLeftRight, label: "Transfers", href: "/dashboard/transfers" },
+  { icon: TrendingUp, label: "Wealth", href: "/dashboard/wealth" },
   { icon: CreditCard, label: "Cards", href: "/dashboard/cards" },
   { icon: BrainCircuit, label: "AI Advisor", href: "/dashboard/advisor" },
   { icon: MessageSquare, label: "Support", href: "/dashboard/support" },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -65,12 +69,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href} 
                 href={item.href}
                 className={cn(
-                  "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors font-medium",
+                  "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors font-medium text-sm",
                   pathname === item.href ? "bg-accent text-white" : "hover:bg-white/10 text-white/70"
                 )}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <item.icon size={20} />
+                <item.icon size={18} />
                 <span>{item.label}</span>
               </Link>
             ))}
@@ -85,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 router.push("/login");
               }}
             >
-              <LogOut size={20} className="mr-3" />
+              <LogOut size={18} className="mr-3" />
               Sign Out
             </Button>
           </div>
@@ -122,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <div className="p-4 md:p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1 bg-muted/20">
           {children}
         </div>
       </main>

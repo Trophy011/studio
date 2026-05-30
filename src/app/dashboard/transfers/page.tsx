@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getCurrentUser, getDB, saveDB, type UserProfile, type Transaction } from "@/lib/banking";
+import { getCurrentUser, getDB, saveDB, type UserProfile, type Transaction, type Bill } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,10 @@ import {
   Hash, 
   AlertTriangle,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  CalendarDays,
+  CreditCard
 } from "lucide-react";
 import { detectFraud } from "@/ai/flows/ai-fraud-detection";
 import { 
@@ -26,6 +29,7 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 export default function TransfersPage() {
   const { toast } = useToast();
@@ -35,7 +39,7 @@ export default function TransfersPage() {
   const [fraudAlert, setFraudAlert] = useState<any>(null);
 
   const [formData, setFormData] = useState({
-    type: 'internal' as 'internal' | 'global',
+    type: 'internal' as 'internal' | 'global' | 'billpay',
     recipient: '',
     amount: '',
     description: '',
@@ -47,6 +51,15 @@ export default function TransfersPage() {
   useEffect(() => {
     setUser(getCurrentUser());
   }, []);
+
+  if (!user) return null;
+
+  // Mock bills if empty
+  const bills: Bill[] = user.bills.length > 0 ? user.bills : [
+    { id: 'b1', name: 'Apex Insurance Group', amount: 450.00, dueDate: '2024-05-15', status: 'upcoming', category: 'Insurance' },
+    { id: 'b2', name: 'Global Properties LLC', amount: 2800.00, dueDate: '2024-05-01', status: 'upcoming', category: 'Rent' },
+    { id: 'b3', name: 'Metropolitan Utilities', amount: 125.40, dueDate: '2024-04-20', status: 'paid', category: 'Utilities' },
+  ];
 
   const handleTransfer = async () => {
     if (!user) return;
@@ -77,9 +90,9 @@ export default function TransfersPage() {
         amount: amountNum,
         currency: 'USD',
         description: formData.description || 'Transfer',
-        location: formData.type === 'internal' ? 'Internal' : formData.country,
+        location: formData.type === 'internal' ? 'Internal' : (formData.type === 'global' ? formData.country : 'Automated Bill Pay'),
         timestamp: new Date().toISOString(),
-        userRecentLocations: ['United States', 'Internal']
+        userRecentLocations: ['United States', 'Internal', 'Global Terminal']
       });
 
       if (fraudCheck.isSuspicious && fraudCheck.riskScore > 70) {
@@ -103,7 +116,6 @@ export default function TransfersPage() {
         return;
       }
 
-      // Add transaction to both
       const trId = `tr-${Date.now()}`;
       const trCommon = {
         date: new Date().toISOString().split('T')[0],
@@ -129,15 +141,15 @@ export default function TransfersPage() {
         from: db.users[currentUserIdx].fullName
       });
     } else {
-      // Global SWIFT
+      // Global SWIFT or BillPay
       db.users[currentUserIdx].balance -= amountNum;
       db.users[currentUserIdx].transactions.unshift({
-        id: `sw-${Date.now()}`,
+        id: `${formData.type === 'global' ? 'sw' : 'bp'}-${Date.now()}`,
         date: new Date().toISOString().split('T')[0],
-        description: `SWIFT: ${formData.recipient} (${formData.country})`,
+        description: formData.type === 'global' ? `SWIFT: ${formData.recipient}` : `Bill Pay: ${formData.recipient}`,
         amount: amountNum,
-        category: 'Global Transfer',
-        status: 'pending',
+        category: formData.type === 'global' ? 'Global Transfer' : 'Bill Payment',
+        status: formData.type === 'global' ? 'pending' : 'completed',
         type: 'outgoing'
       });
     }
@@ -149,172 +161,222 @@ export default function TransfersPage() {
     setFormData({ type: 'internal', recipient: '', amount: '', description: '', swift: '', iban: '', country: '' });
     
     toast({
-      title: "Transfer Initiated",
+      title: "Transaction Initiated",
       description: `$${amountNum.toLocaleString()} successfully processed.`,
     });
   };
 
-  if (!user) return null;
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <Card className="border-none shadow-xl bg-gradient-to-br from-primary to-primary/90 text-white overflow-hidden">
+    <div className="max-w-5xl mx-auto space-y-6">
+      <Card className="border-none shadow-xl bg-primary text-white overflow-hidden relative">
         <CardContent className="p-8 flex justify-between items-center">
           <div>
-            <p className="text-white/70 text-sm font-medium uppercase tracking-wider mb-1">Available Balance</p>
-            <h2 className="text-4xl font-headline font-bold">
+            <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Total Liquid Balance</p>
+            <h2 className="text-4xl md:text-5xl font-headline font-bold">
               ${user.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </h2>
           </div>
-          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md">
-            <ArrowRightLeft size={32} />
+          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md">
+            <ArrowRightLeft size={28} />
           </div>
         </CardContent>
+        <div className="absolute right-[-20px] top-[-20px] opacity-10">
+          <Globe size={150} />
+        </div>
       </Card>
 
       <Tabs defaultValue="internal" className="w-full" onValueChange={(val) => setFormData({...formData, type: val as any})}>
-        <TabsList className="grid w-full grid-cols-2 h-14 bg-muted/50 p-1">
-          <TabsTrigger value="internal" className="rounded-md gap-2">
-            <User size={18} /> Internal Transfer
-          </TabsTrigger>
-          <TabsTrigger value="global" className="rounded-md gap-2">
-            <Globe size={18} /> Global SWIFT/IBAN
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 h-14 bg-muted/50 p-1">
+          <TabsTrigger value="internal" className="gap-2"><User size={16} /> Internal</TabsTrigger>
+          <TabsTrigger value="global" className="gap-2"><Globe size={16} /> Global</TabsTrigger>
+          <TabsTrigger value="billpay" className="gap-2"><Clock size={16} /> Bill Pay</TabsTrigger>
         </TabsList>
 
-        <Card className="mt-6 border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl">Transfer Details</CardTitle>
-            <CardDescription>
-              {formData.type === 'internal' 
-                ? "Send money instantly to any Apex Ledger account holder." 
-                : "Wire funds worldwide using SWIFT/BIC and IBAN standards."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <TabsContent value="internal" className="space-y-4 m-0">
-              <div className="space-y-2">
-                <Label htmlFor="recipient">Recipient Account Number</Label>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+          <Card className="lg:col-span-2 border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl">
+                {formData.type === 'internal' && "Instant Transfer"}
+                {formData.type === 'global' && "International Wire"}
+                {formData.type === 'billpay' && "Managed Bill Payment"}
+              </CardTitle>
+              <CardDescription>
+                {formData.type === 'internal' && "Secure, real-time transfers within the Apex Ledger network."}
+                {formData.type === 'global' && "High-priority SWIFT and IBAN transfers with global coverage."}
+                {formData.type === 'billpay' && "Schedule and automate your recurring financial obligations."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.type === 'internal' && (
+                <div className="space-y-2">
+                  <Label>Recipient Account</Label>
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="10-digit Account Number" 
+                      className="pl-10" 
+                      value={formData.recipient}
+                      onChange={(e) => setFormData({...formData, recipient: e.target.value})}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.type === 'global' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Beneficiary Name</Label>
+                    <Input placeholder="Full Legal Name" value={formData.recipient} onChange={(e) => setFormData({...formData, recipient: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Input placeholder="e.g. Switzerland" value={formData.country} onChange={(e) => setFormData({...formData, country: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>SWIFT / BIC</Label>
+                    <Input placeholder="BANKCODE" value={formData.swift} onChange={(e) => setFormData({...formData, swift: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>IBAN</Label>
+                    <Input placeholder="CH93 0000..." value={formData.iban} onChange={(e) => setFormData({...formData, iban: e.target.value})} />
+                  </div>
+                </div>
+              )}
+
+              {formData.type === 'billpay' && (
+                <div className="space-y-4">
+                  <Label>Select Payee</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {bills.filter(b => b.status !== 'paid').map(bill => (
+                      <div 
+                        key={bill.id} 
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all",
+                          formData.recipient === bill.name ? "border-accent bg-accent/5" : "border-muted hover:border-muted-foreground/20"
+                        )}
+                        onClick={() => {
+                          setFormData({
+                            ...formData, 
+                            recipient: bill.name,
+                            amount: bill.amount.toString(),
+                            description: `Settlement: ${bill.name}`
+                          });
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary">
+                            <CalendarDays size={14} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold">{bill.name}</p>
+                            <p className="text-[10px] text-muted-foreground">Due: {bill.dueDate}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-bold">${bill.amount.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2 pt-2">
+                <Label>Amount (USD)</Label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <span className="absolute left-3 top-3 font-bold text-muted-foreground">$</span>
                   <Input 
-                    id="recipient" 
-                    placeholder="Enter 10-digit number" 
-                    className="pl-10" 
-                    value={formData.recipient}
-                    onChange={(e) => setFormData({...formData, recipient: e.target.value})}
+                    type="number" 
+                    placeholder="0.00" 
+                    className="pl-8 text-2xl h-14 font-semibold" 
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
                   />
                 </div>
               </div>
-            </TabsContent>
 
-            <TabsContent value="global" className="space-y-4 m-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="globalRecipient">Recipient Name</Label>
-                  <Input 
-                    id="globalRecipient" 
-                    placeholder="Full Name" 
-                    value={formData.recipient}
-                    onChange={(e) => setFormData({...formData, recipient: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country">Recipient Country</Label>
-                  <Input 
-                    id="country" 
-                    placeholder="e.g. United Kingdom" 
-                    value={formData.country}
-                    onChange={(e) => setFormData({...formData, country: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="swift">SWIFT / BIC Code</Label>
-                  <Input 
-                    id="swift" 
-                    placeholder="ABCDUS33" 
-                    value={formData.swift}
-                    onChange={(e) => setFormData({...formData, swift: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="iban">IBAN (Europe Required)</Label>
-                  <Input 
-                    id="iban" 
-                    placeholder="GB00 1234..." 
-                    value={formData.iban}
-                    onChange={(e) => setFormData({...formData, iban: e.target.value})}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Transaction Memo</Label>
+                <Input placeholder="Optional reference note" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
               </div>
-            </TabsContent>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full h-12 text-lg font-bold" onClick={() => setConfirmDialog(true)}>
+                Authorize Transaction <ChevronRight size={20} className="ml-1" />
+              </Button>
+            </CardFooter>
+          </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount (USD)</Label>
-              <Input 
-                id="amount" 
-                type="number" 
-                placeholder="0.00" 
-                className="text-2xl h-14 font-semibold" 
-                value={formData.amount}
-                onChange={(e) => setFormData({...formData, amount: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="desc">Memo (Optional)</Label>
-              <Input 
-                id="desc" 
-                placeholder="What is this for?" 
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-              />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full h-12 text-lg font-bold" onClick={() => setConfirmDialog(true)}>
-              Review Transaction <ChevronRight size={20} className="ml-1" />
-            </Button>
-          </CardFooter>
-        </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Security Protocol</CardTitle>
+                <CardDescription>Verified connection</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <CheckCircle2 size={20} className="text-green-500" />
+                  <div className="text-[11px]">
+                    <p className="font-bold">Encrypted Node</p>
+                    <p className="text-muted-foreground">End-to-end ledger validation</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <Clock size={20} className="text-accent" />
+                  <div className="text-[11px]">
+                    <p className="font-bold">Instant Settlement</p>
+                    <p className="text-muted-foreground">Available for all internal routes</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-accent/5 border-accent/20">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard size={18} className="text-accent" /> Limits
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Daily Limit</span>
+                  <span className="font-bold">$500,000.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="font-bold text-green-600">$482,100.00</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </Tabs>
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog} onOpenChange={setConfirmDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Transfer</DialogTitle>
-            <DialogDescription>Please review the details below before authorizing the payment.</DialogDescription>
+            <DialogTitle>Confirm Authorization</DialogTitle>
+            <DialogDescription>Your digital signature is required to finalize this payment.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="bg-muted p-4 rounded-lg flex justify-between items-center">
-              <span className="text-sm font-medium">Sending Amount</span>
-              <span className="text-xl font-bold text-accent">${parseFloat(formData.amount || "0").toLocaleString()}</span>
+            <div className="bg-primary/5 p-6 rounded-2xl flex flex-col items-center gap-2">
+              <span className="text-sm text-muted-foreground">Transfer Amount</span>
+              <span className="text-4xl font-headline font-bold text-primary">${parseFloat(formData.amount || "0").toLocaleString()}</span>
             </div>
-            <div className="space-y-2 px-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">To</span>
-                <span className="font-semibold">{formData.recipient || "N/A"}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Type</span>
-                <span className="font-semibold capitalize">{formData.type}</span>
-              </div>
-              {formData.type === 'global' && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">SWIFT/IBAN</span>
-                  <span className="font-semibold">{formData.swift || formData.iban || "N/A"}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-800 rounded-lg text-xs">
-              <CheckCircle2 size={16} />
-              <span>Funds will be deducted from your account balance instantly.</span>
+            <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
+               <div>
+                 <p className="text-muted-foreground text-[10px] uppercase font-bold">To</p>
+                 <p className="font-semibold">{formData.recipient || "Unnamed Beneficiary"}</p>
+               </div>
+               <div>
+                 <p className="text-muted-foreground text-[10px] uppercase font-bold">Protocol</p>
+                 <p className="font-semibold capitalize">{formData.type}</p>
+               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDialog(false)}>Cancel</Button>
-            <Button onClick={handleTransfer} disabled={loading}>
-              {loading ? "Processing..." : "Authorize Payment"}
+            <Button onClick={handleTransfer} disabled={loading} className="px-8">
+              {loading ? "Decrypting..." : "Finalize Authorization"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -325,20 +387,20 @@ export default function TransfersPage() {
         <DialogContent className="sm:max-w-md border-destructive">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle /> High Risk Transaction Detected
+              <AlertTriangle /> High-Risk Anomaly
             </DialogTitle>
-            <DialogDescription>Our AI monitoring system has flagged this transaction for review.</DialogDescription>
+            <DialogDescription>Apex Oversight has blocked this request for security validation.</DialogDescription>
           </DialogHeader>
-          <div className="p-4 bg-destructive/5 rounded-lg border border-destructive/20">
-            <p className="text-sm font-semibold mb-2">Security Analysis:</p>
-            <p className="text-sm italic">"{fraudAlert?.explanation}"</p>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase">Risk Score</span>
-              <span className="text-lg font-bold text-destructive">{fraudAlert?.riskScore}%</span>
+          <div className="p-4 bg-destructive/5 rounded-xl border border-destructive/20 space-y-3">
+            <p className="text-xs font-bold uppercase text-destructive">System Analysis:</p>
+            <p className="text-sm italic font-medium">"{fraudAlert?.explanation}"</p>
+            <div className="flex items-center justify-between border-t pt-2 mt-2">
+              <span className="text-xs font-bold text-muted-foreground">RISK INDEX</span>
+              <Badge variant="destructive">{fraudAlert?.riskScore}%</Badge>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="w-full" onClick={() => setFraudAlert(null)}>I Understand, Cancel Transfer</Button>
+            <Button variant="outline" className="w-full" onClick={() => setFraudAlert(null)}>Cancel and Revoke</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

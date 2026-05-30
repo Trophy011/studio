@@ -47,7 +47,7 @@ export default function RegisterPage() {
         fullName: formData.fullName,
         accountNumber,
         iban: generateIBAN(accountNumber),
-        balance: 1000.00, // Starting bonus
+        balance: 0.00, // Initial balance set to 0 as requested
         isAdmin: false,
         isLocked: false,
         restrictedTransfers: false,
@@ -56,16 +56,16 @@ export default function RegisterPage() {
         assets: [],
         bills: [],
         goals: [
-          { id: 'goal-1', name: 'Emergency Fund', targetAmount: 5000, currentAmount: 500, category: 'emergency' },
-          { id: 'goal-2', name: 'Summer Trip', targetAmount: 3000, currentAmount: 200, category: 'travel' }
+          { id: 'goal-1', name: 'Emergency Fund', targetAmount: 5000, currentAmount: 0, category: 'emergency' },
+          { id: 'goal-2', name: 'Summer Trip', targetAmount: 3000, currentAmount: 0, category: 'travel' }
         ],
         transactions: [
           {
             id: `tr-${Date.now()}`,
             date: new Date().toISOString().split('T')[0],
-            description: "Welcome Bonus",
-            amount: 1000.00,
-            category: "Salary",
+            description: "Account Activation",
+            amount: 0.00,
+            category: "System",
             status: 'completed',
             type: 'incoming'
           }
@@ -75,7 +75,7 @@ export default function RegisterPage() {
       db.users.push(newUser);
       saveDB(db);
 
-      toast({ title: "Account Created!", description: "You have been awarded a $1,000 welcome bonus." });
+      toast({ title: "Account Created!", description: "Welcome to Apex Ledger. Your secure vault is now active." });
       router.push("/login");
     }, 1500);
   };

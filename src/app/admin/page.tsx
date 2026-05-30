@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { getDB, saveDB, getCurrentUser, type UserProfile, type ChatMessage } from "@/lib/banking";
+import { getDB, saveDB, getCurrentUser, logout, type UserProfile, type ChatMessage } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +14,13 @@ import {
   Users, 
   ShieldAlert, 
   Search, 
-  Ban, 
   Lock, 
   Unlock, 
   LogOut,
-  Settings,
   Database,
   MessageSquare,
   Send,
   CheckCircle2,
-  Clock,
   Terminal
 } from "lucide-react";
 import {
@@ -35,8 +32,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -101,7 +98,7 @@ export default function AdminPage() {
     saveDB(db);
     setUsers([...db.users]);
     setSelectedUser({...db.users[idx]});
-    toast({ title: "Funds Disbursed", description: `$${amount.toLocaleString()} added.` });
+    toast({ title: "Funds Disbursed", description: `$${amount.toLocaleString()} added to ${selectedUser.fullName}.` });
   };
 
   const sendReply = () => {
@@ -199,7 +196,7 @@ export default function AdminPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredUsers.map((u) => (
-                          <TableRow key={u.id} className="cursor-pointer group hover:bg-accent/5 transition-colors border-muted/50" onClick={() => setSelectedUser(u)}>
+                          <TableRow key={u.id} className={cn("cursor-pointer group hover:bg-accent/5 transition-colors border-muted/50", selectedUser?.id === u.id && "bg-accent/5")} onClick={() => setSelectedUser(u)}>
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">

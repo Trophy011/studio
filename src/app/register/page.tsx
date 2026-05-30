@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDB, saveDB, generateAccountNumber, generateIBAN, type UserProfile } from "@/lib/banking";
+import { generateAccountNumber, generateIBAN, type UserProfile } from "@/lib/banking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -10,10 +11,16 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, UserPlus, Mail, Lock, User } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth, useFirestore } from "@/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const db = useFirestore();
+  
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -22,8 +29,10 @@ export default function RegisterPage() {
   });
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth || !db) return;
+
     if (formData.password !== formData.confirmPassword) {
       toast({ variant: "destructive", title: "Passwords do not match" });
       return;
@@ -31,23 +40,18 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
-      const db = getDB();
-      if (db.users.some(u => u.email === formData.email)) {
-        toast({ variant: "destructive", title: "Email already registered" });
-        setLoading(false);
-        return;
-      }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
 
       const accountNumber = generateAccountNumber();
       const newUser: UserProfile = {
-        id: `user-${Date.now()}`,
+        id: user.uid,
         email: formData.email,
-        password: formData.password,
         fullName: formData.fullName,
         accountNumber,
         iban: generateIBAN(accountNumber),
-        balance: 0.00, // Initial balance set to 0 as requested
+        balance: 0.00,
         isAdmin: false,
         isLocked: false,
         restrictedTransfers: false,
@@ -72,12 +76,15 @@ export default function RegisterPage() {
         ]
       };
 
-      db.users.push(newUser);
-      saveDB(db);
+      await setDoc(doc(db, "users", user.uid), newUser);
 
       toast({ title: "Account Created!", description: "Welcome to Apex Ledger. Your secure vault is now active." });
-      router.push("/login");
-    }, 1500);
+      router.push("/dashboard");
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Registration failed", description: error.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

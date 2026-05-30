@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getCurrentUser, type UserProfile } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { type UserProfile } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +21,16 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading } = useDoc<UserProfile>(userRef);
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
-
+  if (loading) return <Skeleton className="h-96 w-full" />;
   if (!user) return null;
 
   return (

@@ -1,29 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getCurrentUser, type UserProfile } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { type UserProfile } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrainCircuit, Sparkles, TrendingDown, ShieldCheck, ArrowRight, Lightbulb } from "lucide-react";
 import { getPersonalFinancialAdvice, type GetPersonalFinancialAdviceOutput } from "@/ai/flows/personal-financial-advisor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
 export default function AdvisorPage() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading: userLoading } = useDoc<UserProfile>(userRef);
+
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState<GetPersonalFinancialAdviceOutput | null>(null);
-
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
 
   const fetchAdvice = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Map transactions to the format required by the AI flow
-      const mappedHistory = user.transactions.map(t => ({
+      const mappedHistory = (user.transactions || []).map(t => ({
         date: t.date,
         description: t.description,
         amount: t.type === 'incoming' ? t.amount : -t.amount,
@@ -43,6 +44,7 @@ export default function AdvisorPage() {
     }
   };
 
+  if (userLoading) return <Skeleton className="h-96 w-full" />;
   if (!user) return null;
 
   return (

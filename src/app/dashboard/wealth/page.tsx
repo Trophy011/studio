@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getCurrentUser, type UserProfile, type Asset } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { type UserProfile, type Asset } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   PieChart, 
-  LineChart, 
   Globe, 
   Coins, 
   Briefcase,
@@ -27,22 +27,20 @@ import {
   Cell 
 } from 'recharts';
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function WealthPage() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading } = useDoc<UserProfile>(userRef);
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
-
+  if (loading) return <Skeleton className="h-96 w-full" />;
   if (!user) return null;
 
-  // Initial mock assets if none exist
   const assets: Asset[] = (user.assets && user.assets.length > 0) ? user.assets : [
     { id: 'a1', name: 'S&P 500 Index', value: 45200.50, change: 12.4, type: 'stock' },
     { id: 'a2', name: 'Bitcoin (BTC)', value: 28400.00, change: -2.1, type: 'crypto' },
-    { id: 'a3', name: 'London Real Estate', value: 1250000.00, change: 4.8, type: 'real_estate' },
-    { id: 'a4', name: 'Gold Bullion', value: 12500.25, change: 0.5, type: 'commodity' },
   ];
 
   const totalWealth = assets.reduce((acc, curr) => acc + curr.value, 0) + user.balance;
@@ -85,9 +83,6 @@ export default function WealthPage() {
               </Badge>
             </div>
           </CardContent>
-          <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
-            <LineChart size={200} />
-          </div>
         </Card>
 
         <Card className="shadow-sm">
@@ -128,14 +123,6 @@ export default function WealthPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-               {assets.map((a, i) => (
-                 <div key={a.id} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-                    <span className="text-xs font-medium truncate">{a.name}</span>
-                 </div>
-               ))}
-            </div>
           </CardContent>
         </Card>
 
@@ -174,39 +161,6 @@ export default function WealthPage() {
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-card hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="p-6 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-               <TrendingUp size={24} />
-            </div>
-            <h3 className="font-bold">Growth Portfolio</h3>
-            <p className="text-xs text-muted-foreground">Aggressive strategies for capital appreciation.</p>
-            <Button variant="link" className="p-0 h-auto text-xs text-accent">Explore Strategy <ChevronRight size={14} /></Button>
-          </CardContent>
-        </Card>
-        <Card className="bg-card hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="p-6 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-               <ShieldCheck size={24} />
-            </div>
-            <h3 className="font-bold">Wealth Preservation</h3>
-            <p className="text-xs text-muted-foreground">Low-risk fixed income and global bonds.</p>
-            <Button variant="link" className="p-0 h-auto text-xs text-accent">Explore Strategy <ChevronRight size={14} /></Button>
-          </CardContent>
-        </Card>
-        <Card className="bg-card hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="p-6 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-               <Coins size={24} />
-            </div>
-            <h3 className="font-bold">Digital Assets</h3>
-            <p className="text-xs text-muted-foreground">Staking and liquidity provision for DeFi.</p>
-            <Button variant="link" className="p-0 h-auto text-xs text-accent">Explore Strategy <ChevronRight size={14} /></Button>
           </CardContent>
         </Card>
       </div>

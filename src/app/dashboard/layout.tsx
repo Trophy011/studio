@@ -1,8 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getCurrentUser, logout, type UserProfile } from "@/lib/banking";
 import { 
   LayoutDashboard, 
   ArrowLeftRight, 
@@ -20,6 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useUser, useDoc, useAuth, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { type UserProfile } from "@/lib/banking";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
@@ -34,17 +37,31 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const auth = useAuth();
+  const db = useFirestore();
+  const { user: authUser, loading: authLoading } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Fetch live user data
+  const userDocRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading: userLoading } = useDoc<UserProfile>(userDocRef);
+
   useEffect(() => {
-    const u = getCurrentUser();
-    if (!u) {
+    if (!authLoading && !authUser) {
       router.push("/login");
-    } else {
-      setUser(u);
     }
-  }, [router]);
+  }, [authUser, authLoading, router]);
+
+  if (authLoading || userLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <ShieldCheck size={48} className="text-accent" />
+          <p className="text-sm font-medium text-muted-foreground">Synchronizing with secure node...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -84,8 +101,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Button 
               variant="ghost" 
               className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await auth?.signOut();
                 router.push("/login");
               }}
             >

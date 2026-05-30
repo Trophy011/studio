@@ -1,4 +1,11 @@
-import { type TransactionHistory } from "@/ai/flows/personal-financial-advisor";
+
+'use client';
+
+/**
+ * @fileOverview Centralized banking library for Apex Ledger.
+ * Provides data types and helper functions for financial operations.
+ * Now primarily handles types and data generation, as persistence is managed by Firebase hooks.
+ */
 
 export type Transaction = {
   id: string;
@@ -40,7 +47,6 @@ export type Bill = {
 export type UserProfile = {
   id: string;
   email: string;
-  password?: string;
   fullName: string;
   accountNumber: string;
   iban: string;
@@ -71,56 +77,6 @@ export type ChatMessage = {
   image?: string;
   timestamp: string;
 };
-
-const STORAGE_KEY = 'apex_ledger_db';
-const SESSION_KEY = 'apex_ledger_session';
-
-export function getDB(): { users: UserProfile[], messages: ChatMessage[] } {
-  if (typeof window === 'undefined') return { users: [], messages: [] };
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) {
-    const adminAccount: UserProfile = {
-      id: 'admin-001',
-      email: 'managementofficails001@gmail.com',
-      password: 'smart446688',
-      fullName: 'Apex Administration',
-      accountNumber: '0000000001',
-      iban: 'APEX0000000001',
-      balance: 10000000000,
-      isAdmin: true,
-      isLocked: false,
-      restrictedTransfers: false,
-      notes: ['Master Admin Account Created'],
-      cards: [],
-      transactions: [],
-      goals: [],
-      assets: [],
-      bills: []
-    };
-    const initialDB = { users: [adminAccount], messages: [] };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialDB));
-    return initialDB;
-  }
-  return JSON.parse(data);
-}
-
-export function saveDB(db: { users: UserProfile[], messages: ChatMessage[] }) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-}
-
-export function getCurrentUser(): UserProfile | null {
-  if (typeof window === 'undefined') return null;
-  const session = localStorage.getItem(SESSION_KEY);
-  if (!session) return null;
-  const db = getDB();
-  return db.users.find(u => u.id === session) || null;
-}
-
-export function logout() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(SESSION_KEY);
-}
 
 export function generateAccountNumber() {
   return Math.floor(Math.random() * 9000000000 + 1000000000).toString();

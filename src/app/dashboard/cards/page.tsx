@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getCurrentUser, getDB, saveDB, generateCard, type UserProfile } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { type UserProfile, generateCard } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,22 +16,22 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CardsPage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading } = useDoc<UserProfile>(userRef);
+
   const [showNumbers, setShowNumbers] = useState<Record<string, boolean>>({});
   const [applyDialog, setApplyDialog] = useState(false);
   const [cardType, setCardType] = useState<'virtual' | 'physical'>('virtual');
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
-
   const handleApply = () => {
-    if (!user) return;
-    const db = getDB();
-    const userIdx = db.users.findIndex(u => u.id === user.id);
+    if (!user || !userRef) return;
     const { number, expiry, cvv } = generateCard();
     
     const newCard = {
@@ -42,9 +43,10 @@ export default function CardsPage() {
       status: 'active' as const
     };
 
-    db.users[userIdx].cards.push(newCard);
-    saveDB(db);
-    setUser(db.users[userIdx]);
+    updateDoc(userRef, {
+      cards: arrayUnion(newCard)
+    });
+
     setApplyDialog(false);
     toast({ title: "Card Issued", description: `Your ${cardType} card is ready for use.` });
   };
@@ -53,6 +55,7 @@ export default function CardsPage() {
     setShowNumbers(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  if (loading) return <Skeleton className="h-96 w-full" />;
   if (!user) return null;
 
   return (
@@ -67,7 +70,7 @@ export default function CardsPage() {
         </Button>
       </div>
 
-      {user.cards.length === 0 ? (
+      {(!user.cards || user.cards.length === 0) ? (
         <Card className="bg-muted/10 border-dashed border-2 py-20 flex flex-col items-center">
           <CreditCard size={64} className="text-muted mb-4" />
           <h3 className="text-xl font-bold">No Cards Active</h3>
@@ -138,7 +141,7 @@ export default function CardsPage() {
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">Instantly block any of your cards if you suspect fraudulent activity or misplacement.</p>
             <div className="flex flex-wrap gap-2">
-              {user.cards.map(c => (
+              {(user.cards || []).map(c => (
                 <Button key={c.id} variant="outline" size="sm">Freeze {c.type} ••{c.number.slice(-4)}</Button>
               ))}
             </div>

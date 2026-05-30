@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { getCurrentUser, getDB, saveDB, type UserProfile, type ChatMessage } from "@/lib/banking";
+import { useUser, useDoc, useFirestore, useCollection } from "@/firebase";
+import { doc, addDoc, collection, query, where, orderBy } from "firebase/firestore";
+import { type UserProfile, type ChatMessage } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const FAQS = [
   {
@@ -46,20 +49,23 @@ const FAQS = [
 
 export default function SupportCenterPage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading: userLoading } = useDoc<UserProfile>(userRef);
+
+  const messagesQuery = useMemo(() => {
+    if (!db || !authUser) return null;
+    return query(
+      collection(db, "messages"),
+      where("participants", "array-contains", authUser.uid),
+      orderBy("timestamp", "asc")
+    );
+  }, [db, authUser]);
+
+  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const u = getCurrentUser();
-    setUser(u);
-    if (u) {
-      const db = getDB();
-      const userMessages = db.messages.filter(m => m.senderId === u.id || m.receiverId === u.id);
-      setMessages(userMessages);
-    }
-  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -68,36 +74,29 @@ export default function SupportCenterPage() {
   }, [messages]);
 
   const sendMessage = (image?: string) => {
-    if (!user || (!text.trim() && !image)) return;
+    if (!authUser || !db || (!text.trim() && !image)) return;
 
-    const db = getDB();
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: user.id,
+    const newMessage = {
+      senderId: authUser.uid,
       receiverId: 'admin-001',
+      participants: [authUser.uid, 'admin-001'],
       text: text,
       image: image,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toISOString()
     };
 
-    db.messages.push(newMessage);
-    saveDB(db);
-    setMessages(prev => [...prev, newMessage]);
+    addDoc(collection(db, "messages"), newMessage);
     setText("");
     
-    // Fake automated response
     if (!image) {
       setTimeout(() => {
-        const reply: ChatMessage = {
-          id: `rep-${Date.now()}`,
+        addDoc(collection(db, "messages"), {
           senderId: 'admin-001',
-          receiverId: user.id,
+          receiverId: authUser.uid,
+          participants: [authUser.uid, 'admin-001'],
           text: "Thank you for contacting Apex Ledger Support. A human agent will review your inquiry shortly. Your reference ID is " + Math.random().toString(36).substr(2, 9).toUpperCase(),
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        db.messages.push(reply);
-        saveDB(db);
-        setMessages(prev => [...prev, reply]);
+          timestamp: new Date().toISOString()
+        });
       }, 2000);
     }
   };
@@ -110,6 +109,7 @@ export default function SupportCenterPage() {
     }
   };
 
+  if (userLoading) return <Skeleton className="h-96 w-full" />;
   if (!user) return null;
 
   return (
@@ -236,8 +236,8 @@ export default function SupportCenterPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="icon" className="rounded-full"><Phone size={18} /></Button>
-                <Button variant="ghost" size="icon" className="rounded-full"><MoreVertical size={18} /></Button>
+                <Phone size={18} className="text-muted-foreground cursor-pointer" />
+                <MoreVertical size={18} className="text-muted-foreground cursor-pointer" />
               </div>
             </CardHeader>
             
@@ -247,11 +247,11 @@ export default function SupportCenterPage() {
                   <span className="text-[10px] uppercase font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">Secure Session Established</span>
                 </div>
                 
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
+                {(messages || []).map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.senderId === authUser?.uid ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] space-y-1`}>
                       <div className={`p-4 rounded-2xl ${
-                        msg.senderId === user.id 
+                        msg.senderId === authUser?.uid 
                           ? 'bg-accent text-white rounded-tr-none shadow-lg shadow-accent/20' 
                           : 'bg-muted/80 rounded-tl-none border shadow-sm'
                       }`}>
@@ -262,9 +262,9 @@ export default function SupportCenterPage() {
                         )}
                         <p className="text-sm leading-relaxed">{msg.text}</p>
                       </div>
-                      <div className={`flex items-center gap-1 text-[10px] text-muted-foreground ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
-                        {msg.timestamp}
-                        {msg.senderId === user.id && <CheckCircle2 size={10} className="text-accent" />}
+                      <div className={`flex items-center gap-1 text-[10px] text-muted-foreground ${msg.senderId === authUser?.uid ? 'justify-end' : 'justify-start'}`}>
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {msg.senderId === authUser?.uid && <CheckCircle2 size={10} className="text-accent" />}
                       </div>
                     </div>
                   </div>

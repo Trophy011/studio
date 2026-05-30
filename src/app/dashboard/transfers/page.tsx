@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getCurrentUser, getDB, saveDB, type UserProfile, type Transaction, type Bill } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc, updateDoc, arrayUnion, increment, collection, query, where, getDocs } from "firebase/firestore";
+import { type UserProfile, type Bill } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +32,16 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TransfersPage() {
   const { toast } = useToast();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading: userLoading } = useDoc<UserProfile>(userRef);
+
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [fraudAlert, setFraudAlert] = useState<any>(null);
@@ -49,21 +56,8 @@ export default function TransfersPage() {
     country: ''
   });
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
-
-  if (!user) return null;
-
-  // Mock bills if empty
-  const bills: Bill[] = (user.bills && user.bills.length > 0) ? user.bills : [
-    { id: 'b1', name: 'Apex Insurance Group', amount: 450.00, dueDate: '2024-05-15', status: 'upcoming', category: 'Insurance' },
-    { id: 'b2', name: 'Global Properties LLC', amount: 2800.00, dueDate: '2024-05-01', status: 'upcoming', category: 'Rent' },
-    { id: 'b3', name: 'Metropolitan Utilities', amount: 125.40, dueDate: '2024-04-20', status: 'paid', category: 'Utilities' },
-  ];
-
   const handleTransfer = async () => {
-    if (!user) return;
+    if (!user || !userRef || !db) return;
     const amountNum = parseFloat(formData.amount);
     
     if (isNaN(amountNum) || amountNum <= 0) {
@@ -83,7 +77,6 @@ export default function TransfersPage() {
 
     setLoading(true);
     
-    // AI Fraud Detection Check
     try {
       const fraudCheck = await detectFraud({
         transactionId: `tx-${Date.now()}`,
@@ -102,61 +95,70 @@ export default function TransfersPage() {
         return;
       }
     } catch (e) {
-      console.error("AI Fraud check failed, proceeding manually", e);
+      console.error("AI Fraud check error", e);
     }
 
-    // Execution Logic
-    const db = getDB();
-    const currentUserIdx = db.users.findIndex(u => u.id === user.id);
-    
+    const trId = `tr-${Date.now()}`;
+    const date = new Date().toISOString().split('T')[0];
+
     if (formData.type === 'internal') {
-      const recipientIdx = db.users.findIndex(u => u.accountNumber === formData.recipient);
-      if (recipientIdx === -1) {
+      const q = query(collection(db, "users"), where("accountNumber", "==", formData.recipient));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
         toast({ variant: "destructive", title: "Recipient account not found" });
         setLoading(false);
         return;
       }
 
-      const trId = `tr-${Date.now()}`;
-      const trCommon = {
-        date: new Date().toISOString().split('T')[0],
-        description: formData.description || 'Internal Transfer',
-        amount: amountNum,
-        category: 'Transfer',
-        status: 'completed' as const,
-      };
+      const recipientDoc = querySnapshot.docs[0];
+      const recipientData = recipientDoc.data() as UserProfile;
+      const recipientRef = doc(db, "users", recipientDoc.id);
 
-      db.users[currentUserIdx].balance -= amountNum;
-      db.users[currentUserIdx].transactions.unshift({
-        ...trCommon,
-        id: trId,
-        type: 'outgoing',
-        to: db.users[recipientIdx].fullName
+      // Sender Write
+      updateDoc(userRef, {
+        balance: increment(-amountNum),
+        transactions: arrayUnion({
+          id: trId,
+          date,
+          description: formData.description || 'Internal Transfer',
+          amount: amountNum,
+          category: 'Transfer',
+          status: 'completed',
+          type: 'outgoing',
+          to: recipientData.fullName
+        })
       });
 
-      db.users[recipientIdx].balance += amountNum;
-      db.users[recipientIdx].transactions.unshift({
-        ...trCommon,
-        id: `rec-${trId}`,
-        type: 'incoming',
-        from: db.users[currentUserIdx].fullName
+      // Recipient Write
+      updateDoc(recipientRef, {
+        balance: increment(amountNum),
+        transactions: arrayUnion({
+          id: `rec-${trId}`,
+          date,
+          description: formData.description || 'Internal Transfer',
+          amount: amountNum,
+          category: 'Transfer',
+          status: 'completed',
+          type: 'incoming',
+          from: user.fullName
+        })
       });
     } else {
-      // Global SWIFT or BillPay
-      db.users[currentUserIdx].balance -= amountNum;
-      db.users[currentUserIdx].transactions.unshift({
-        id: `${formData.type === 'global' ? 'sw' : 'bp'}-${Date.now()}`,
-        date: new Date().toISOString().split('T')[0],
-        description: formData.type === 'global' ? `SWIFT: ${formData.recipient}` : `Bill Pay: ${formData.recipient}`,
-        amount: amountNum,
-        category: formData.type === 'global' ? 'Global Transfer' : 'Bill Payment',
-        status: formData.type === 'global' ? 'pending' : 'completed',
-        type: 'outgoing'
+      updateDoc(userRef, {
+        balance: increment(-amountNum),
+        transactions: arrayUnion({
+          id: `${formData.type === 'global' ? 'sw' : 'bp'}-${Date.now()}`,
+          date,
+          description: formData.type === 'global' ? `SWIFT: ${formData.recipient}` : `Bill Pay: ${formData.recipient}`,
+          amount: amountNum,
+          category: formData.type === 'global' ? 'Global Transfer' : 'Bill Payment',
+          status: formData.type === 'global' ? 'pending' : 'completed',
+          type: 'outgoing'
+        })
       });
     }
 
-    saveDB(db);
-    setUser(db.users[currentUserIdx]);
     setLoading(false);
     setConfirmDialog(false);
     setFormData({ type: 'internal', recipient: '', amount: '', description: '', swift: '', iban: '', country: '' });
@@ -166,6 +168,14 @@ export default function TransfersPage() {
       description: `$${amountNum.toLocaleString()} successfully processed.`,
     });
   };
+
+  if (userLoading) return <Skeleton className="h-96 w-full" />;
+  if (!user) return null;
+
+  const bills: Bill[] = (user.bills && user.bills.length > 0) ? user.bills : [
+    { id: 'b1', name: 'Apex Insurance Group', amount: 450.00, dueDate: '2024-05-15', status: 'upcoming', category: 'Insurance' },
+    { id: 'b2', name: 'Global Properties LLC', amount: 2800.00, dueDate: '2024-05-01', status: 'upcoming', category: 'Rent' },
+  ];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -351,7 +361,6 @@ export default function TransfersPage() {
         </div>
       </Tabs>
 
-      {/* Confirmation Dialog */}
       <Dialog open={confirmDialog} onOpenChange={setConfirmDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -383,7 +392,6 @@ export default function TransfersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Fraud Alert Dialog */}
       <Dialog open={!!fraudAlert} onOpenChange={() => setFraudAlert(null)}>
         <DialogContent className="sm:max-w-md border-destructive">
           <DialogHeader>

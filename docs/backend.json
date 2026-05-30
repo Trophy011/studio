@@ -1,0 +1,121 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Comprehensive profile for a banking user, including financial accounts and security status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "fullName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "iban": { "type": "string" },
+        "balance": { "type": "number" },
+        "isAdmin": { "type": "boolean" },
+        "isLocked": { "type": "boolean" },
+        "restrictedTransfers": { "type": "boolean" },
+        "notes": { "type": "array", "items": { "type": "string" } },
+        "cards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "number": { "type": "string" },
+              "expiry": { "type": "string" },
+              "cvv": { "type": "string" },
+              "type": { "type": "string", "enum": ["virtual", "physical"] },
+              "status": { "type": "string", "enum": ["active", "blocked"] }
+            }
+          }
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "date": { "type": "string" },
+              "description": { "type": "string" },
+              "amount": { "type": "number" },
+              "category": { "type": "string" },
+              "status": { "type": "string", "enum": ["completed", "pending", "reversed"] },
+              "type": { "type": "string", "enum": ["incoming", "outgoing"] },
+              "to": { "type": "string" },
+              "from": { "type": "string" }
+            }
+          }
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "targetAmount": { "type": "number" },
+              "currentAmount": { "type": "number" },
+              "category": { "type": "string", "enum": ["travel", "emergency", "investment", "large_purchase"] }
+            }
+          }
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "value": { "type": "number" },
+              "change": { "type": "number" },
+              "type": { "type": "string", "enum": ["stock", "crypto", "commodity", "real_estate"] }
+            }
+          }
+        },
+        "bills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "amount": { "type": "number" },
+              "dueDate": { "type": "string" },
+              "status": { "type": "string", "enum": ["upcoming", "paid", "overdue"] },
+              "category": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["id", "email", "fullName", "accountNumber", "balance"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Secure communication record between a user and the administration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "image": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "senderId", "receiverId", "text", "timestamp"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User account and financial data."
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Communication logs for customer support."
+    }
+  }
+}

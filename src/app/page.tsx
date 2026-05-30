@@ -2,19 +2,19 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "@/lib/banking";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Globe, Zap, ArrowRight } from "lucide-react";
+import { useUser } from "@/firebase";
 
 export default function Home() {
   const router = useRouter();
+  const { user, loading } = useUser();
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
+    if (!loading && user) {
       router.push("/dashboard");
     }
-  }, [router]);
+  }, [user, loading, router]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">

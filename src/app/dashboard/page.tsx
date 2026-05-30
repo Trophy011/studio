@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getCurrentUser, type UserProfile } from "@/lib/banking";
+import { useUser, useDoc, useFirestore } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { type UserProfile } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +15,13 @@ import {
   TrendingUp,
   ShieldCheck,
   Target,
-  ChevronRight,
-  ShieldAlert,
-  ArrowRight,
-  Briefcase,
-  Send,
   Plus,
   ArrowRightLeft,
   FileText,
   Lock,
-  ExternalLink
+  ExternalLink,
+  Briefcase,
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -36,13 +34,27 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardOverview() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user: authUser } = useUser();
+  const db = useFirestore();
+  const userRef = authUser && db ? doc(db, "users", authUser.uid) : null;
+  const { data: user, loading } = useDoc<UserProfile>(userRef);
 
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -58,11 +70,10 @@ export default function DashboardOverview() {
 
   const assetTotal = (user.assets || []).reduce((a, b) => a + b.value, 0);
   const totalBalance = user.balance;
-  const savingsMock = user.balance * 0.45; // Mocking a savings account for visual richness
+  const savingsMock = user.balance * 0.45;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Top Greeting & Quick Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Good morning, {user.fullName.split(' ')[0]}</h1>
@@ -81,7 +92,6 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-primary text-white border-none shadow-xl relative overflow-hidden group">
           <CardHeader className="pb-2">
@@ -139,7 +149,6 @@ export default function DashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Trajectory Chart */}
         <Card className="lg:col-span-2 shadow-sm border-none bg-card overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 px-6 py-4">
             <div>
@@ -181,9 +190,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        {/* Sidebar Widgets */}
         <div className="space-y-8">
-          {/* Recent Activity */}
           <Card className="shadow-sm border-none bg-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg">Recent Settlements</CardTitle>
@@ -230,7 +237,6 @@ export default function DashboardOverview() {
             </CardContent>
           </Card>
 
-          {/* Reserve Goals */}
           <Card className="shadow-sm border-none bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">

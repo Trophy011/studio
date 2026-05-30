@@ -1,8 +1,8 @@
+
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDB } from "@/lib/banking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -10,36 +10,48 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Lock, User, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { useAuth, useFirestore } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth || !db) return;
+    
     setLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const db = getDB();
-      const user = db.users.find(u => u.email === email && u.password === password);
-
-      if (user) {
-        if (user.isLocked) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.isLocked) {
           setError("This account has been restricted by administration.");
+          await auth.signOut();
           setLoading(false);
           return;
         }
-        localStorage.setItem('apex_ledger_session', user.id);
-        router.push(user.isAdmin ? "/admin" : "/dashboard");
+        router.push(userData.isAdmin ? "/admin" : "/dashboard");
       } else {
-        setError("Invalid email or password. Please try again.");
+        setError("Account data not found.");
         setLoading(false);
       }
-    }, 1000);
+    } catch (error: any) {
+      setError("Invalid email or password. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (

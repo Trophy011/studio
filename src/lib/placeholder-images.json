@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bank",
+      "description": "Professional banking skyscraper",
+      "imageUrl": "https://picsum.photos/seed/apex/1200/800",
+      "imageHint": "finance building"
+    },
+    {
+      "id": "admin-avatar",
+      "description": "Professional support agent",
+      "imageUrl": "https://picsum.photos/seed/support/100/100",
+      "imageHint": "support person"
+    }
+  ]
 }

@@ -12,6 +12,14 @@ export type Transaction = {
   type: 'incoming' | 'outgoing';
 };
 
+export type SavingsGoal = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  category: 'travel' | 'emergency' | 'investment' | 'large_purchase';
+};
+
 export type UserProfile = {
   id: string;
   email: string;
@@ -33,6 +41,7 @@ export type UserProfile = {
     status: 'active' | 'blocked';
   }[];
   transactions: Transaction[];
+  goals: SavingsGoal[];
 };
 
 export type ChatMessage = {
@@ -64,7 +73,8 @@ export function getDB(): { users: UserProfile[], messages: ChatMessage[] } {
       restrictedTransfers: false,
       notes: ['Master Admin Account Created'],
       cards: [],
-      transactions: []
+      transactions: [],
+      goals: []
     };
     const initialDB = { users: [adminAccount], messages: [] };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(initialDB));

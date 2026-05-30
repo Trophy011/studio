@@ -5,6 +5,7 @@ import { getCurrentUser, type UserProfile } from "@/lib/banking";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -12,16 +13,12 @@ import {
   Wallet, 
   TrendingUp,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Target,
+  ChevronRight,
+  ShieldAlert
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { 
   AreaChart, 
   Area, 
@@ -53,28 +50,35 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-primary text-white col-span-1 md:col-span-2 relative overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="bg-primary text-white lg:col-span-2 relative overflow-hidden border-none shadow-xl">
           <CardHeader>
-            <CardTitle className="text-lg font-medium opacity-80">Current Total Balance</CardTitle>
+            <CardTitle className="text-lg font-medium opacity-80">Total Liquidity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-baseline space-x-2">
-              <span className="text-4xl md:text-5xl font-headline font-bold">
-                ${user.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </span>
-              <Badge variant="secondary" className="bg-accent text-white border-none">
-                <TrendingUp size={14} className="mr-1" /> +2.5%
-              </Badge>
+            <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-4xl md:text-5xl font-headline font-bold">
+                  ${user.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+                <Badge variant="secondary" className="bg-accent text-white border-none">
+                  <TrendingUp size={14} className="mr-1" /> +2.5%
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Badge className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-sm">
+                  <ShieldCheck size={14} className="mr-1" /> Verified
+                </Badge>
+              </div>
             </div>
             
-            <div className="flex space-x-4">
+            <div className="flex space-x-8 pt-4">
               <div className="flex flex-col">
                 <span className="text-xs opacity-60 uppercase font-bold tracking-wider">Account Number</span>
                 <span className="font-mono text-lg">{user.accountNumber}</span>
               </div>
-              <div className="flex flex-col pl-4 border-l border-white/20">
-                <span className="text-xs opacity-60 uppercase font-bold tracking-wider">IBAN</span>
+              <div className="flex flex-col pl-8 border-l border-white/20">
+                <span className="text-xs opacity-60 uppercase font-bold tracking-wider">Apex IBAN</span>
                 <span className="font-mono text-lg">{user.iban}</span>
               </div>
             </div>
@@ -84,43 +88,53 @@ export default function DashboardOverview() {
           </div>
         </Card>
 
-        <Card className="col-span-1 border-accent/20 bg-accent/5">
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-            <CardDescription>Common banking tasks</CardDescription>
+        <Card className="border-accent/20 bg-accent/5 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center justify-between">
+              Security Health
+              <ShieldAlert className="text-accent h-5 w-5" />
+            </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="flex flex-col h-20 items-center justify-center gap-1">
-              <ArrowUpRight size={20} className="text-accent" />
-              <span>Transfer</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-20 items-center justify-center gap-1">
-              <CreditCard size={20} className="text-accent" />
-              <span>Card Pay</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-20 items-center justify-center gap-1">
-              <Wallet size={20} className="text-accent" />
-              <span>Bill Pay</span>
-            </Button>
-            <Button variant="outline" className="flex flex-col h-20 items-center justify-center gap-1">
-              <ExternalLink size={20} className="text-accent" />
-              <span>Global</span>
-            </Button>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Vault Protection</span>
+                <span className="font-bold text-accent">High</span>
+              </div>
+              <Progress value={85} className="h-1.5" />
+            </div>
+            <div className="grid grid-cols-1 gap-2 pt-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-background border text-xs">
+                <span className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-green-500"></div> 2FA Active
+                </span>
+                <Badge variant="outline" className="text-[9px]">Manage</Badge>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-background border text-xs">
+                <span className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-green-500"></div> Encrypted
+                </span>
+                <Badge variant="outline" className="text-[9px]">Keys</Badge>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Spending Overview</CardTitle>
-              <CardDescription>Activity from the last 7 days</CardDescription>
+              <CardTitle>Global Ledger Activity</CardTitle>
+              <CardDescription>7-day transaction frequency</CardDescription>
             </div>
-            <Badge variant="outline">Weekly</Badge>
+            <div className="flex items-center gap-2">
+               <Badge variant="outline">USD</Badge>
+               <Badge variant="outline">Daily</Badge>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full mt-4">
+            <div className="h-[280px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
@@ -142,44 +156,60 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest financial transactions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {user.transactions.slice(0, 5).map((tr) => (
-                <div key={tr.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors">
+        <div className="space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target className="text-accent h-5 w-5" /> Savings Goals
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {user.goals?.map(goal => (
+                <div key={goal.id} className="space-y-2">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span>{goal.name}</span>
+                    <span className="text-muted-foreground">${goal.currentAmount} / ${goal.targetAmount}</span>
+                  </div>
+                  <Progress value={(goal.currentAmount / goal.targetAmount) * 100} className="h-2" />
+                </div>
+              ))}
+              <Button variant="ghost" className="w-full text-accent text-xs h-8" size="sm">
+                Add New Goal <ChevronRight size={14} />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Recent Ledger</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {user.transactions.slice(0, 4).map((tr) => (
+                <div key={tr.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors border-b last:border-0 border-muted/30">
                   <div className="flex items-center space-x-3">
                     <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center",
+                      "w-8 h-8 rounded-full flex items-center justify-center",
                       tr.type === 'incoming' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
                     )}>
-                      {tr.type === 'incoming' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                      {tr.type === 'incoming' ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold truncate w-32">{tr.description}</p>
-                      <p className="text-xs text-muted-foreground">{tr.date}</p>
+                      <p className="text-[11px] font-bold truncate w-24">{tr.description}</p>
+                      <p className="text-[9px] text-muted-foreground">{tr.date}</p>
                     </div>
                   </div>
                   <span className={cn(
-                    "text-sm font-bold",
+                    "text-xs font-bold",
                     tr.type === 'incoming' ? "text-green-600" : "text-foreground"
                   )}>
                     {tr.type === 'incoming' ? '+' : '-'}${Math.abs(tr.amount).toLocaleString()}
                   </span>
                 </div>
               ))}
-              {user.transactions.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">No transactions yet.</p>
-              )}
-            </div>
-            {user.transactions.length > 5 && (
-              <Button variant="ghost" className="w-full mt-4 text-accent">View All Activity</Button>
-            )}
-          </CardContent>
-        </Card>
+              <Button variant="outline" className="w-full h-8 text-[11px]" size="sm">Full Statement History</Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -53,6 +53,10 @@ export default function RegisterPage() {
         restrictedTransfers: false,
         notes: ['Account created'],
         cards: [],
+        goals: [
+          { id: 'goal-1', name: 'Emergency Fund', targetAmount: 5000, currentAmount: 500, category: 'emergency' },
+          { id: 'goal-2', name: 'Summer Trip', targetAmount: 3000, currentAmount: 200, category: 'travel' }
+        ],
         transactions: [
           {
             id: `tr-${Date.now()}`,
